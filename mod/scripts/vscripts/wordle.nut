@@ -13,15 +13,14 @@ array<string> wordleAnswerArray;
 int maxGames;
 int maxGuesses;
 
-string wordleColourGreen = "\x1b[38;2;103;165;97m";
-string wordleColourYellow = "\x1b[38;2;195;174;85m";
-string wordleColourGrey = "\x1b[38;2;71;75;77m";
-string wordleColourWhite = "\x1b[38;2;254;254;254m";
-string wordleColourLightGrey = "\x1b[38;2;166;209;228m";
+string wordleColourGreen = "\x1b[38;5;71m";
+string wordleColourYellow = "\x1b[38;5;178m";
+string wordleColourGrey = "\x1b[38;5;8m";
+string wordleColourWhite = "\x1b[0m";
+string wordleColourLightGrey = "\x1b[36m";
 
 string formatSpaceBeforeWord = "                 ";
 string formatSpaceBeforeKeyboard = "      ";
-string formatHorizontalLine = "--------------------------";
 
 void function WordleInit() {
 	AddCallback_OnReceivedSayTextMessage(WordleCheckGuess);
@@ -47,15 +46,14 @@ ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message)
 
 		// player did not send correct number of letters - broadcast the blank game to them one time
 		if (message.message.len() != wordleAnswer.len()) {
-			Chat_ServerPrivateMessage(message.player, "Guess the WORDLE in " + maxGuesses + " tries.", false);
-			Chat_ServerPrivateMessage(message.player, "Each guess must be a valid " + wordleAnswer.len() + " letter word. Type in chat to submit.", false);
+			Chat_ServerPrivateMessage(message.player, "Guess the WORDLE in " + maxGuesses + " tries. Each guess must be a valid " + wordleAnswer.len() + " letter word. Type in chat to submit.", false);
 			Chat_ServerPrivateMessage(message.player, "After each guess, the color of the tiles will change to show how close your guess was to the word.", false);
 			Chat_ServerPrivateMessage(message.player, "Examples", false);
-			Chat_ServerPrivateMessage(message.player, wordleColourGreen + "W" + wordleColourWhite + "EARY", false);
+			Chat_ServerPrivateMessage(message.player, formatSpaceBeforeKeyboard + wordleColourGreen + "W" + wordleColourWhite + "EARY", false);
 			Chat_ServerPrivateMessage(message.player, "The letter W is in the word and in the correct spot.", false);
-			Chat_ServerPrivateMessage(message.player, "P" + wordleColourYellow + "I" + wordleColourWhite + "LLS", false);
+			Chat_ServerPrivateMessage(message.player, formatSpaceBeforeKeyboard + "P" + wordleColourYellow + "I" + wordleColourWhite + "LLS", false);
 			Chat_ServerPrivateMessage(message.player, "The letter I is in the word but in the wrong spot.", false);
-			Chat_ServerPrivateMessage(message.player, "VAG" + wordleColourGrey + "U" + wordleColourWhite + "E", false);
+			Chat_ServerPrivateMessage(message.player, formatSpaceBeforeKeyboard + "VAG" + wordleColourGrey + "U" + wordleColourWhite + "E", false);
 			Chat_ServerPrivateMessage(message.player, "The letter U is not in the word in any spot.", false);
 			Chat_ServerPrivateMessage(message.player, "A new WORDLE will be available each map!", false);
 			return message;
@@ -79,11 +77,10 @@ ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message)
 	if (guess.len() != wordleAnswer.len()) return message;
 
 	// Past this point, user is playing
-	string errorMessage = formatHorizontalLine;
+	string errorMessage = "";
 
 	// Ignore if player's text is not in allowed words
 	if (wordleDictionaryAllowed.find(guess.tolower()) < 0 && wordleDictionaryAnswers.find(guess.tolower()) < 0) {
-		//Chat_ServerPrivateMessage(message.player, guess + " is not a valid word", false);
 		errorMessage = guess + " is not a valid word";
 		message.shouldBlock = true;
 	}
@@ -92,14 +89,12 @@ ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message)
 		guessData[message.player].guesses.append(guess);
 	}
 
-
-	// Put a divider
-	Chat_ServerPrivateMessage(message.player, "-- " + GetMapName() + " " + GameRules_GetGameMode() + " Wordle --", true);
+	// Draw a little divider blank space
+	Chat_ServerPrivateMessage(message.player, "", true);
 	DrawGame(message.player, false, errorMessage);	// Draw gamestate privately
 
 	// Player won. Show them the win message and stop them from playing again
 	if (guess == wordleAnswer) {
-		//Chat_ServerPrivateMessage(message.player, guessData[message.player].guesses.len() + "/" + maxGuesses, false);
 		guessData[message.player].finished = true;	// Stop the player from being able to play again
 
 		// Share player's result with the server
@@ -107,6 +102,7 @@ ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message)
 		DrawGame(message.player, true);
 	}
 	else if (guessData[message.player].guesses.len() >= maxGuesses) {
+		// Player lost
 		Chat_ServerBroadcast(message.player.GetPlayerName() + " did not guess this map's Wordle");
 		DrawGame(message.player, true);
 		Chat_ServerPrivateMessage(message.player, "The answer was " + wordleAnswer, true);
@@ -123,24 +119,15 @@ void function DrawGame(entity player, bool public = false, string message = "") 
 	for (int i = 0; i < maxGuesses; i++) {
 
 		if (i < guessData[player].guesses.len()) {	// Player has a guess within this row
-			if (!public) {
-				Chat_ServerPrivateMessage(player, formatSpaceBeforeWord + FormatGuess(guessData[player].guesses[i], wordleAnswer), true);
-			}
+			if (!public) Chat_ServerPrivateMessage(player, FormatGuess(guessData[player].guesses[i], wordleAnswer) + FormatKeyboard(guessData[player].guesses, wordleAnswer, i, message), true);
 			else Chat_ServerBroadcast(FormatGuess(guessData[player].guesses[i], wordleAnswer, true));
 		}
 		else { // Player has not guessed beyond this point
-			if (!public) Chat_ServerPrivateMessage(player, formatSpaceBeforeWord + blankAnswer, true);
+			if (!public) Chat_ServerPrivateMessage(player, blankAnswer + FormatKeyboard(guessData[player].guesses, wordleAnswer, i, message), true);
 		}
 
 	}
 
-	// Draw keyboard for player
-	if (!public) {
-		Chat_ServerPrivateMessage(player, wordleColourLightGrey + message, true);
-		Chat_ServerPrivateMessage(player, FormatKeyboard(guessData[player].guesses, wordleAnswer, 0), true);
-		Chat_ServerPrivateMessage(player, FormatKeyboard(guessData[player].guesses, wordleAnswer, 1), true);
-		Chat_ServerPrivateMessage(player, FormatKeyboard(guessData[player].guesses, wordleAnswer, 2), true);
-	}
 }
 
 /* Return a one line colourised string
@@ -170,7 +157,7 @@ string function FormatGuess(string guess, string answer, bool blank = false) {
 
 /* Provides the specified row of the keyboard given the guesses and answer
 */
-string function FormatKeyboard(array<string> guesses, string answer, int row) {
+string function FormatKeyboard(array<string> guesses, string answer, int row, string message = "") {
 	table<string, string> l = {
 		A = wordleColourWhite + "A",
 		B = wordleColourWhite + "B",
@@ -216,9 +203,11 @@ string function FormatKeyboard(array<string> guesses, string answer, int row) {
 	}
 
 	string output = "";
-	if (row == 0) output = 			formatSpaceBeforeKeyboard + l["Q"] + " " + l["W"] + " " + l["E"] + " " + l["R"] + " " + l["T"] + " " + l["Y"] + " " + l["U"] + " " + l["I"] + " " + l["O"] + " " + l["P"];
-	else if (row == 1) output = formatSpaceBeforeKeyboard + " " + l["A"] + " " + l["S"] + " " + l["D"] + " " + l["F"] + " " + l["G"] + " " + l["H"] + " " + l["J"] + " " + l["K"] + " " + l["L"];
-	else if (row == 2) output = formatSpaceBeforeKeyboard + "   " + l["Z"] + " " + l["X"] + " " + l["C"] + " " + l["V"] + " " + l["B"] + " " + l["N"] + " " + l["M"];
+	if (row == 0) output = formatSpaceBeforeKeyboard + wordleColourWhite + "-- " + GetMapName() + " " + GameRules_GetGameMode() + " Wordle --";
+	else if (row == maxGuesses - 4) output = formatSpaceBeforeKeyboard + wordleColourLightGrey + message;
+	else if (row == maxGuesses - 3) output = formatSpaceBeforeKeyboard + formatSpaceBeforeKeyboard + l["Q"] + " " + l["W"] + " " + l["E"] + " " + l["R"] + " " + l["T"] + " " + l["Y"] + " " + l["U"] + " " + l["I"] + " " + l["O"] + " " + l["P"];
+	else if (row == maxGuesses - 2) output = formatSpaceBeforeKeyboard + formatSpaceBeforeKeyboard + " " + l["A"] + " " + l["S"] + " " + l["D"] + " " + l["F"] + " " + l["G"] + " " + l["H"] + " " + l["J"] + " " + l["K"] + " " + l["L"];
+	else if (row == maxGuesses - 1) output = formatSpaceBeforeKeyboard + formatSpaceBeforeKeyboard + "   " + l["Z"] + " " + l["X"] + " " + l["C"] + " " + l["V"] + " " + l["B"] + " " + l["N"] + " " + l["M"];
 	return output;
 
 }
