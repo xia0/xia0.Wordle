@@ -1,0 +1,33 @@
+{
+	"Name" : "xia0.Wordle",
+	"Description" : "One Wordle every map.",
+	"Version": "1.0",
+	"LoadPriority": 1,
+	"ConVars": [
+		{
+			"Name": "wordle_blank_character",
+			"DefaultValue": "#"
+		},
+		{
+			"Name": "wordle_guesses",
+			"DefaultValue": "6"
+		}
+	],
+	"Scripts": [
+		{
+			"Path": "wordle.nut",
+			"RunOn": "SERVER && MP",
+			"ServerCallback": {
+				"After": "WordleInit"
+			}
+		},
+		{
+			"Path": "dictionary_answers.nut",
+			"RunOn": "SERVER && MP"
+		},
+		{
+			"Path": "dictionary_allowed.nut",
+			"RunOn": "SERVER && MP"
+		}
+	]
+}
