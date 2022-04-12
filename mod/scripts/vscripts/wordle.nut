@@ -49,12 +49,9 @@ ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message)
 			Chat_ServerPrivateMessage(message.player, "Guess the WORDLE in " + maxGuesses + " tries. Each guess must be a valid " + wordleAnswer.len() + " letter word. Type in chat to submit.", false);
 			Chat_ServerPrivateMessage(message.player, "After each guess, the color of the tiles will change to show how close your guess was to the word.", false);
 			Chat_ServerPrivateMessage(message.player, "Examples", false);
-			Chat_ServerPrivateMessage(message.player, formatSpaceBeforeKeyboard + wordleColourGreen + "W" + wordleColourWhite + "EARY", false);
-			Chat_ServerPrivateMessage(message.player, "The letter W is in the word and in the correct spot.", false);
-			Chat_ServerPrivateMessage(message.player, formatSpaceBeforeKeyboard + "P" + wordleColourYellow + "I" + wordleColourWhite + "LLS", false);
-			Chat_ServerPrivateMessage(message.player, "The letter I is in the word but in the wrong spot.", false);
-			Chat_ServerPrivateMessage(message.player, formatSpaceBeforeKeyboard + "VAG" + wordleColourGrey + "U" + wordleColourWhite + "E", false);
-			Chat_ServerPrivateMessage(message.player, "The letter U is not in the word in any spot.", false);
+			Chat_ServerPrivateMessage(message.player, "  " + wordleColourGreen + "W" + wordleColourWhite + "EARY - The letter W is in the word and in the correct spot.", false);
+			Chat_ServerPrivateMessage(message.player, "  P" + wordleColourYellow + "I" + wordleColourWhite + "LLS - The letter I is in the word but in the wrong spot.", false);
+			Chat_ServerPrivateMessage(message.player, "  VAG" + wordleColourGrey + "U" + wordleColourWhite + "E - The letter U is not in the word in any spot.", false);
 			Chat_ServerPrivateMessage(message.player, "A new WORDLE will be available each map!", false);
 			return message;
 		}
@@ -82,7 +79,6 @@ ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message)
 	// Ignore if player's text is not in allowed words
 	if (wordleDictionaryAllowed.find(guess.tolower()) < 0 && wordleDictionaryAnswers.find(guess.tolower()) < 0) {
 		errorMessage = guess + " is not a valid word";
-		message.shouldBlock = true;
 	}
 	else {
 		// If player is still in the game at this point, save their guess
