@@ -9,7 +9,6 @@ table<entity, GuessData> guessData = {};
 string wordleAnswer;
 string blankCharacter;
 string blankAnswer = "";
-array<string> wordleAnswerArray;
 int maxGames;
 int maxGuesses;
 
@@ -35,7 +34,6 @@ void function WordleInit() {
 
 	// Split the word into individual letters, generate our blank-out string
 	for (int i = 0; i < wordleAnswer.len(); i++) {
-		wordleAnswerArray.append(wordleAnswer.slice(i, i+1));
 		blankAnswer += blankCharacter;
 	}
 }
