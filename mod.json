@@ -11,6 +11,10 @@
 		{
 			"Name": "wordle_guesses",
 			"DefaultValue": "6"
+		},
+		{
+			"Name": "wordle_share_at_map_end",
+			"DefaultValue": "1"
 		}
 	],
 	"Scripts": [

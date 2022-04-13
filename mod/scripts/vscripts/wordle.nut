@@ -21,6 +21,7 @@ string formatSpace = "      ";
 
 void function WordleInit() {
 	AddCallback_OnReceivedSayTextMessage(WordleCheckGuess);
+	if (GetConVarBool("wordle_share_at_map_end")) AddCallback_GameStateEnter(eGameState.Postmatch, WordleShareServerResults);
 
 	// Select our wordle word from the dictionary array
 	// Randomise the word selection a little more as randomisation in northstar is pseudo-random
@@ -256,4 +257,17 @@ void function SendInstructions(entity player) {
 	Chat_ServerPrivateMessage(player, "  " + wordleColourGreen + "W" + wordleColourWhite + "EARY - The letter W is in the word and in the correct spot.", false);
 	Chat_ServerPrivateMessage(player, "  P" + wordleColourYellow + "I" + wordleColourWhite + "LLS - The letter I is in the word but in the wrong spot.", false);
 	Chat_ServerPrivateMessage(player, "  VAG" + wordleColourGrey + "U" + wordleColourWhite + "E - The letter U is not in the word in any spot.", false);
+}
+
+/* Announce Wordle winners to the server
+*/
+void function WordleShareServerResults() {
+	string output = "";
+	for (entity player, GuessData g in guessData) {
+		if (g.finished) {
+			if (output.len() > 0) output += ", ";
+			output += player.GetPlayerName() + " (" + g.guesses.len() + "/" + maxGuesses + ")";
+		}
+	}
+	if (output.len() > 0) Chat_ServerBroadcast("The following players solved this map's Wordle:" + output);
 }
