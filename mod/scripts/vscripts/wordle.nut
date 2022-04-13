@@ -102,7 +102,7 @@ ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message)
 	}
 
 	// Debug msg
-	//printl(message.player.GetPlayerName() + " guessed " + guess + " - Answer is " + wordleAnswer);
+	printl(message.player.GetPlayerName() + " guessed " + guess + " - Answer is " + wordleAnswer);
 
 	message.shouldBlock = true;
 	return message;
@@ -112,6 +112,9 @@ ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message)
 		bool public if true, will broadcast
 */
 void function DrawGame(entity player, bool public = false, string message = "") {
+	// Server messages are lost if watching killcam.
+	while(player.IsWatchingKillReplay()) WaitFrame();
+
 	// Go through each of the player's guesses
 	for (int i = 0; i < maxGuesses; i++) {
 
@@ -121,7 +124,7 @@ void function DrawGame(entity player, bool public = false, string message = "") 
 			else output += FormatGuess(guessData[player].guesses[i], wordleAnswer, true);
 		}
 		else if (!public) output += blankAnswer; // Player has not guessed beyond this point - show them blank white squares
-
+		
 		if (public) {
 			if (output.len() > 0) Chat_ServerBroadcast(output);
 		}
@@ -263,11 +266,13 @@ void function SendInstructions(entity player) {
 */
 void function WordleShareServerResults() {
 	string output = "";
-	for (entity player, GuessData g in guessData) {
+	foreach (entity player, GuessData g in guessData) {
 		if (g.finished) {
 			if (output.len() > 0) output += ", ";
 			output += player.GetPlayerName() + " (" + g.guesses.len() + "/" + maxGuesses + ")";
 		}
 	}
-	if (output.len() > 0) Chat_ServerBroadcast("The following players solved this map's Wordle:" + output);
+	if (output.len() > 0) {
+		Chat_ServerBroadcast("Wordle winners: " + output);
+	}
 }
