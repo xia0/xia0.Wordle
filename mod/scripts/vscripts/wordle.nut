@@ -24,7 +24,7 @@ void function WordleInit() {
 
 	// Select our wordle word from the dictionary array
 	// Randomise the word selection a little more as randomisation in northstar is pseudo-random
-	int r = rndint(wordleDictionaryAnswers.len()) + GetMapName().len() * GameRules_GetGameMode().len() * GetPlayerArray().len();
+	int r = rndint(wordleDictionaryAnswers.len()) + GetMapName().len() * GameRules_GetGameMode().len() * (GetPlayerArray().len()+1);
 	if (r > wordleDictionaryAnswers.len() - 1) r -= wordleDictionaryAnswers.len(); // Prevent array out of bounds. Loop back to start of array
 	wordleAnswer = wordleDictionaryAnswers[r].toupper();
 
