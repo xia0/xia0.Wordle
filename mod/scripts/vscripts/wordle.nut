@@ -18,18 +18,22 @@ string wordleColourYellow = "\x1b[38;5;178m";
 string wordleColourGrey = "\x1b[38;5;8m";
 string wordleColourWhite = "\x1b[0m";
 string wordleColourLightGrey = "\x1b[36m";
-
-string formatSpaceBeforeWord = "                 ";
-string formatSpaceBeforeKeyboard = "      ";
+string formatSpace = "      ";
 
 void function WordleInit() {
 	AddCallback_OnReceivedSayTextMessage(WordleCheckGuess);
 
-	wordleAnswer = wordleDictionaryAnswers[rndint(wordleDictionaryAnswers.len())].toupper();
+	// Select our wordle word from the dictionary array
+	// Randomise the word selection a little more as randomisation in northstar is pseudo-random
+	int r = rndint(wordleDictionaryAnswers.len()) + GetMapName().len() * GameRules_GetGameMode().len() * GetPlayerArray().len();
+	if (r > wordleDictionaryAnswers.len() - 1) r -= wordleDictionaryAnswers.len(); // Prevent array out of bounds. Loop back to start of array
+	wordleAnswer = wordleDictionaryAnswers[r].toupper();
+
 	blankCharacter = GetConVarString("wordle_blank_character");
 	maxGuesses = GetConVarInt("wordle_guesses");
+	if (maxGuesses < 3) maxGuesses = 3;	// Do not allow less than 3 guesses because keyboard will not display correctly
 
-	// Split the word into individual letters
+	// Split the word into individual letters, generate our blank-out string
 	for (int i = 0; i < wordleAnswer.len(); i++) {
 		wordleAnswerArray.append(wordleAnswer.slice(i, i+1));
 		blankAnswer += blankCharacter;
@@ -38,6 +42,7 @@ void function WordleInit() {
 
 
 ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message) {
+	string errorMessage = "";
 
 	// Check if player has guessed before and if not, initialise their data
 	if (!(message.player in guessData)) {
@@ -46,18 +51,14 @@ ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message)
 
 		// player did not send correct number of letters - broadcast the blank game to them one time
 		if (message.message.len() != wordleAnswer.len()) {
-			Chat_ServerPrivateMessage(message.player, "Guess the WORDLE in " + maxGuesses + " tries. Each guess must be a valid " + wordleAnswer.len() + " letter word. Type in chat to submit.", false);
-			Chat_ServerPrivateMessage(message.player, "After each guess, the color of the tiles will change to show how close your guess was to the word.", false);
-			Chat_ServerPrivateMessage(message.player, "Examples", false);
-			Chat_ServerPrivateMessage(message.player, "  " + wordleColourGreen + "W" + wordleColourWhite + "EARY - The letter W is in the word and in the correct spot.", false);
-			Chat_ServerPrivateMessage(message.player, "  P" + wordleColourYellow + "I" + wordleColourWhite + "LLS - The letter I is in the word but in the wrong spot.", false);
-			Chat_ServerPrivateMessage(message.player, "  VAG" + wordleColourGrey + "U" + wordleColourWhite + "E - The letter U is not in the word in any spot.", false);
-			Chat_ServerPrivateMessage(message.player, "A new WORDLE will be available each map!", false);
+			SendInstructions(message.player);
+			errorMessage = "A new WORDLE will be available each map!";
+			DrawGame(message.player, false, errorMessage);
 			return message;
 		}
 	}
 
-	// Put player's guess into a string
+	// Put player's guess into a sanitised string with all caps and no non-alphabetical characters
 	string guess = CleanGuessInput(message.message);
 
 	// Check if player has already finished playing
@@ -72,9 +73,6 @@ ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message)
 
 	// If saying a string of incorrect length, just ignore - probs a normal chat msg
 	if (guess.len() != wordleAnswer.len()) return message;
-
-	// Past this point, user is playing
-	string errorMessage = "";
 
 	// Ignore if player's text is not in allowed words
 	if (wordleDictionaryAllowed.find(guess.tolower()) < 0 && wordleDictionaryAnswers.find(guess.tolower()) < 0) {
@@ -104,29 +102,42 @@ ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message)
 		Chat_ServerPrivateMessage(message.player, "The answer was " + wordleAnswer, true);
 	}
 
+	// Debug msg
+	//printl(message.player.GetPlayerName() + " guessed " + guess + " - Answer is " + wordleAnswer);
+
 	message.shouldBlock = true;
 	return message;
 }
 
 /* Sends chat message or broadcast with wordle gamestate
+		bool public if true, will broadcast
 */
 void function DrawGame(entity player, bool public = false, string message = "") {
 	// Go through each of the player's guesses
 	for (int i = 0; i < maxGuesses; i++) {
 
-		if (i < guessData[player].guesses.len()) {	// Player has a guess within this row
-			if (!public) Chat_ServerPrivateMessage(player, FormatGuess(guessData[player].guesses[i], wordleAnswer) + FormatKeyboard(guessData[player].guesses, wordleAnswer, i, message), true);
-			else Chat_ServerBroadcast(FormatGuess(guessData[player].guesses[i], wordleAnswer, true));
+		string output = "";
+		if (i < guessData[player].guesses.len()) { // Player has a guess within this row
+			if (!public) output += FormatGuess(guessData[player].guesses[i], wordleAnswer);
+			else output += FormatGuess(guessData[player].guesses[i], wordleAnswer, true);
 		}
-		else { // Player has not guessed beyond this point
-			if (!public) Chat_ServerPrivateMessage(player, blankAnswer + FormatKeyboard(guessData[player].guesses, wordleAnswer, i, message), true);
-		}
+		else if (!public) output += blankAnswer; // Player has not guessed beyond this point - show them blank white squares
 
+		if (public) {
+			if (output.len() > 0) Chat_ServerBroadcast(output);
+		}
+		else {	// Append keyboard to player's private game
+			output += FormatKeyboard(guessData[player].guesses, wordleAnswer, i, message);
+			Chat_ServerPrivateMessage(player, output, true);
+		}
 	}
 
 }
 
-/* Return a one line colourised string
+/* Format a guess against an answer.
+		string guess contains the player's guess
+		string answer the string to check against
+		bool blank if true, retains the colours but replaces the letter with blank-out character
 */
 string function FormatGuess(string guess, string answer, bool blank = false) {
 
@@ -199,16 +210,18 @@ string function FormatKeyboard(array<string> guesses, string answer, int row, st
 	}
 
 	string output = "";
-	if (row == 0) output = formatSpaceBeforeKeyboard + wordleColourWhite + "-- " + GetMapName() + " " + GameRules_GetGameMode() + " Wordle --";
-	else if (row == maxGuesses - 4) output = formatSpaceBeforeKeyboard + wordleColourLightGrey + message;
-	else if (row == maxGuesses - 3) output = formatSpaceBeforeKeyboard + formatSpaceBeforeKeyboard + l["Q"] + " " + l["W"] + " " + l["E"] + " " + l["R"] + " " + l["T"] + " " + l["Y"] + " " + l["U"] + " " + l["I"] + " " + l["O"] + " " + l["P"];
-	else if (row == maxGuesses - 2) output = formatSpaceBeforeKeyboard + formatSpaceBeforeKeyboard + " " + l["A"] + " " + l["S"] + " " + l["D"] + " " + l["F"] + " " + l["G"] + " " + l["H"] + " " + l["J"] + " " + l["K"] + " " + l["L"];
-	else if (row == maxGuesses - 1) output = formatSpaceBeforeKeyboard + formatSpaceBeforeKeyboard + "   " + l["Z"] + " " + l["X"] + " " + l["C"] + " " + l["V"] + " " + l["B"] + " " + l["N"] + " " + l["M"];
+	// Order these by priority in case server has set low number of guesses
+	if (row == maxGuesses - 3) output = formatSpace + formatSpace + l["Q"] + " " + l["W"] + " " + l["E"] + " " + l["R"] + " " + l["T"] + " " + l["Y"] + " " + l["U"] + " " + l["I"] + " " + l["O"] + " " + l["P"];
+	else if (row == maxGuesses - 2) output = formatSpace + formatSpace + " " + l["A"] + " " + l["S"] + " " + l["D"] + " " + l["F"] + " " + l["G"] + " " + l["H"] + " " + l["J"] + " " + l["K"] + " " + l["L"];
+	else if (row == maxGuesses - 1) output = formatSpace + formatSpace + "   " + l["Z"] + " " + l["X"] + " " + l["C"] + " " + l["V"] + " " + l["B"] + " " + l["N"] + " " + l["M"];
+	else if (row == maxGuesses - 4) output = formatSpace + wordleColourLightGrey + message;
+	else if (row == 0) output = formatSpace + wordleColourWhite + "-- " + GetMapName() + " " + GameRules_GetGameMode() + " Wordle --";
 	return output;
 
 }
 
 /* Standardises input to allcaps and no special characters or spaces
+		Expected output is string of player's message in all caps and no non-alphabetical characters removed
 */
 string function CleanGuessInput(string input) {
 	string output = "";
@@ -217,11 +230,7 @@ string function CleanGuessInput(string input) {
 	string validCharacters = "abcdefghijklmnopqrstuvwxyz";
 	validCharacters += validCharacters.toupper();
 
-	array<string> characters = [];	// Load up player's guess into an array
-	for (int i = 0; i < input.len(); i++) {
-		characters.append(input.slice(i, i+1));
-	}
-
+	array<string> characters = SplitStringToChars(input);
 	foreach (string character in characters) {
 		if (validCharacters.find(character) != null) output += character.toupper();
 	}
@@ -230,11 +239,23 @@ string function CleanGuessInput(string input) {
 }
 
 /* Take a string and return an array of characters
+		Returns an array of strings containing 1 character each
 */
 array<string> function SplitStringToChars(string input) {
-	array<string> characters = [];	// Load up player's guess into an array
+	array<string> characters = [];
 	for (int i = 0; i < input.len(); i++) {
 		characters.append(input.slice(i, i+1));
 	}
 	return characters;
+}
+
+/* Send message to client with instructions on how to play
+*/
+void function SendInstructions(entity player) {
+	Chat_ServerPrivateMessage(player, "Guess the WORDLE in " + maxGuesses + " tries. Each guess must be a valid " + wordleAnswer.len() + " letter word. Type in chat to submit.", false);
+	Chat_ServerPrivateMessage(player, "After each guess, the color of the tiles will change to show how close your guess was to the word.", false);
+	Chat_ServerPrivateMessage(player, "Examples", false);
+	Chat_ServerPrivateMessage(player, "  " + wordleColourGreen + "W" + wordleColourWhite + "EARY - The letter W is in the word and in the correct spot.", false);
+	Chat_ServerPrivateMessage(player, "  P" + wordleColourYellow + "I" + wordleColourWhite + "LLS - The letter I is in the word but in the wrong spot.", false);
+	Chat_ServerPrivateMessage(player, "  VAG" + wordleColourGrey + "U" + wordleColourWhite + "E - The letter U is not in the word in any spot.", false);
 }
