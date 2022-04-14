@@ -7,6 +7,7 @@ struct GuessData {
 
 table<entity, GuessData> guessData = {};
 string wordleAnswer;
+string wordleWinners;
 string blankCharacter;
 string blankAnswer = "";
 int maxGames;
@@ -90,6 +91,10 @@ ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message)
 	if (guess == wordleAnswer) {
 		guessData[message.player].finished = true;	// Stop the player from being able to play again
 
+		// Add the player's result to the winners string
+		if (wordleWinners.len() > 0) wordleWinners += ", ";
+		wordleWinners += message.player.GetPlayerName() + " (" + guessData[message.player].guesses.len() + "/" + maxGuesses + ")";
+
 		// Share player's result with the server
 		Chat_ServerBroadcast(message.player.GetPlayerName() + " got this map's Wordle in " + guessData[message.player].guesses.len() + "/" + maxGuesses);
 		DrawGame(message.player, true);
@@ -102,7 +107,7 @@ ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message)
 	}
 
 	// Debug msg
-	printl(message.player.GetPlayerName() + " guessed " + guess + " - Answer is " + wordleAnswer);
+	//printl(message.player.GetPlayerName() + " guessed " + guess + " - Answer is " + wordleAnswer);
 
 	message.shouldBlock = true;
 	return message;
@@ -124,7 +129,7 @@ void function DrawGame(entity player, bool public = false, string message = "") 
 			else output += FormatGuess(guessData[player].guesses[i], wordleAnswer, true);
 		}
 		else if (!public) output += blankAnswer; // Player has not guessed beyond this point - show them blank white squares
-		
+
 		if (public) {
 			if (output.len() > 0) Chat_ServerBroadcast(output);
 		}
@@ -265,14 +270,7 @@ void function SendInstructions(entity player) {
 /* Announce Wordle winners to the server
 */
 void function WordleShareServerResults() {
-	string output = "";
-	foreach (entity player, GuessData g in guessData) {
-		if (g.finished) {
-			if (output.len() > 0) output += ", ";
-			output += player.GetPlayerName() + " (" + g.guesses.len() + "/" + maxGuesses + ")";
-		}
-	}
-	if (output.len() > 0) {
-		Chat_ServerBroadcast("Wordle winners: " + output);
+	if (wordleWinners.len() > 0) {
+		Chat_ServerBroadcast("Wordle winners: " + wordleWinners);
 	}
 }
