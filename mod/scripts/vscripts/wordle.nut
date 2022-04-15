@@ -22,7 +22,7 @@ string formatSpace = "      ";
 
 void function WordleInit() {
 	AddCallback_OnReceivedSayTextMessage(WordleCheckGuess);
-	if (GetConVarBool("wordle_share_at_map_end")) AddCallback_GameStateEnter(eGameState.Postmatch, WordleShareServerResults);
+	if (GetConVarBool("wordle_share_at_map_end")) AddCallback_GameStateEnter(eGameState.WinnerDetermined, WordleShareServerResults);
 
 	// Select our wordle word from the dictionary array
 	// Randomise the word selection a little more as randomisation in northstar is pseudo-random
@@ -208,9 +208,11 @@ string function FormatKeyboard(array<string> guesses, string answer, int row, st
 		int i = 0;
 		foreach (string char in guessLetters) {
 
-			if (answer.find(char) != null) l[char] = wordleColourYellow + char;
-			else l[char] = wordleColourGrey + char;
 			if (char == answerLetters[i]) l[char] = wordleColourGreen + char;
+			else if (l[char] != wordleColourGreen + char) {
+				if (answer.find(char) != null) l[char] = wordleColourYellow + char;
+				else l[char] = wordleColourGrey + char;
+			}
 
 			i++;
 		}
@@ -268,9 +270,15 @@ void function SendInstructions(entity player) {
 }
 
 /* Announce Wordle winners to the server
+		Should be run at the end of the game on eGameState.WinnerDetermined
 */
 void function WordleShareServerResults() {
-	if (wordleWinners.len() > 0) {
+	if (wordleWinners.len() > 0 &&
+			(
+				!IsRoundBased() ||
+				(IsRoundBased() && GameRules_GetTeamScore2(GameScore_GetWinningTeam()) == GetRoundScoreLimit_FromPlaylist())
+			)
+		) {
 		Chat_ServerBroadcast("Wordle winners: " + wordleWinners);
 	}
 }
