@@ -77,10 +77,12 @@ ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message)
 	// Ignore if player's text is not in allowed words
 	if (wordleDictionaryAllowed.find(guess.tolower()) < 0 && wordleDictionaryAnswers.find(guess.tolower()) < 0) {
 		errorMessage = guess + " is not a valid word";
+		EmitSoundOnEntityOnlyToPlayer( message.player, message.player, "CoOp_SentryGun_DeploymentDeniedBeep" );
 	}
 	else {
 		// If player is still in the game at this point, save their guess
 		guessData[message.player].guesses.append(guess);
+		EmitSoundOnEntityOnlyToPlayer( message.player, message.player, "UI_InGame_FD_ArmoryPurchase" );
 	}
 
 	// Draw a little divider blank space
