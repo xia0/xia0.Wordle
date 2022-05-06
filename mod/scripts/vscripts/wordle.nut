@@ -63,14 +63,14 @@ ClServer_MessageStruct function WordleCheckGuess(ClServer_MessageStruct message)
 	if (guessData[message.player].guesses.len() >= maxGuesses || guessData[message.player].finished) {
 
 		// See if player is saying the answer maybe with other characters between
-		if (message.message.find(wordleAnswer) != null) {
+		if (guess.find(wordleAnswer) != null) {
 			message.shouldBlock = true;
 		}
 		return message;
 	}
 
 	// If saying a string of incorrect length, just ignore - probs a normal chat msg
-	if (message.message.len() != wordleAnswer.len()) return message;
+	if (guess.len() != wordleAnswer.len()) return message;
 
 	// Ignore if player's text is not in allowed words
 	if (wordleDictionaryAllowed.find(guess.tolower()) < 0 && wordleDictionaryAnswers.find(guess.tolower()) < 0) {
@@ -236,7 +236,7 @@ string function CleanGuessInput(string input) {
 	string output = "";
 
 	// Make a list of acceptable characters
-	string validCharacters = "abcdefghijklmnopqrstuvwxyz";
+	string validCharacters = "abcdefghijklmnopqrstuvwxyz ";
 	validCharacters += validCharacters.toupper();
 
 	array<string> characters = SplitStringToChars(input);
